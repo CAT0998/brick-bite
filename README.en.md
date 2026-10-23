@@ -125,6 +125,18 @@ Try **Half** first, then **Wide**.
 
 ---
 
+## 4.4 Prebuilt installers (recommended for end users)
+
+If you do not want to compile, use the installers from the Releases page:
+
+| Installer | Target |
+|---|---|
+| `BrickBite-Installer-2.4.2` | OrcaSlicer **v2.4.2** official release |
+| `BrickBite-Installer-2.3.2` | 2.3.2-dev (staggered branch build) |
+
+The installer compares SHA256 hashes and **replaces only files that differ**, backing each one up as `*.brickbite.bak`.
+See [INSTALLER.md](INSTALLER.md).
+
 ## 5. Known limitations
 
 1. **Surface banding** — the outer wall width alternates per layer, so the outer surface shows a wide/narrow texture.

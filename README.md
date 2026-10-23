@@ -117,6 +117,18 @@ git apply /path/to/brick_bite.patch
 
 ---
 
+## 4.4 预编译安装器（推荐普通用户）
+
+不想自己编译的话，可以直接用安装器（Releases 页面下载）：
+
+| 安装器 | 适用版本 |
+|---|---|
+| `BrickBite-Installer-2.4.2` | OrcaSlicer **v2.4.2** 官方发布版 |
+| `BrickBite-Installer-2.3.2` | 2.3.2-dev（staggered 分支构建） |
+
+安装器会按 SHA256 比对文件，**只替换有差异的文件**，替换前自动备份为 `*.brickbite.bak`。
+详见 [INSTALLER.md](INSTALLER.md)。
+
 ## 5. 已知限制
 
 1. **表面条纹**：外墙线宽逐层变化，外表面会呈现宽窄交替的纹理，属预期现象；
