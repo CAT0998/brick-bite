@@ -1,0 +1,239 @@
+diff -ru '--exclude=build' '--exclude=deps' '--exclude=.github' a/src/libslic3r/PerimeterGenerator.cpp b/src/libslic3r/PerimeterGenerator.cpp
+--- a/src/libslic3r/PerimeterGenerator.cpp	2025-10-08 22:53:00.000000000 +0800
++++ b/src/libslic3r/PerimeterGenerator.cpp	2026-10-22 22:13:43.243881000 +0800
+@@ -354,6 +354,22 @@
+     bool is_contour = false;
+ };
+ 
++// Brick bite: on alternating layers the first (outer) wall is printed half as wide.
++// Its centreline moves to keep the outer face flush, so the whole inner wall block
++// shifts sideways by half a line width - no polygon offset needed.
++static void apply_brick_outer_width(PerimeterGenerator &pg)
++{
++    if (pg.config->brick_wall_mode.value == BrickWallMode::bwmNone)
++        return;
++    const bool odd = (pg.layer_id % 2) == 1;
++    float factor;
++    if (pg.config->brick_wall_mode.value == BrickWallMode::bwmHalf)
++        factor = odd ? 0.5f : 1.0f;      // alternate half / normal
++    else
++        factor = odd ? 0.5f : 1.5f;      // alternate wide / narrow (full line width shift)
++    pg.ext_perimeter_flow = pg.ext_perimeter_flow.with_width(pg.ext_perimeter_flow.width() * factor);
++}
++
+ static ExtrusionEntityCollection traverse_extrusions(const PerimeterGenerator& perimeter_generator, std::vector<PerimeterGeneratorArachneExtrusion>& pg_extrusions,
+     bool &steep_overhang_contour, bool &steep_overhang_hole)
+ {
+@@ -543,14 +559,6 @@
+                 }
+                 assert(extrusion_loop.paths.front().first_point() == extrusion_loop.paths.back().last_point());
+ 
+-				//This is for staggered layers. 
+-				//All odd perimeters are staggerd up by half the layer height                
+-                if (extrusion->inset_idx % 2 == 1 && perimeter_generator.config->staggered_perimeters) {
+-                    for (size_t path_idx = 0; path_idx < extrusion_loop.paths.size(); path_idx++) {
+-                        ExtrusionPath& cur_path = extrusion_loop.paths[path_idx];
+-                        check_and_stagger_path(cur_path);
+-                    }
+-                }
+                 extrusion_coll.append(std::move(extrusion_loop));
+             }
+             else {
+@@ -572,14 +580,7 @@
+                     multi_path.paths.emplace_back(std::move(*it_path));
+                 }
+ 
+-				//This is for staggered layers. 
+-				//All odd perimeters are staggerd up by half the layer height                
+-                if (extrusion->inset_idx % 2 == 1 && perimeter_generator.config->staggered_perimeters) {
+-                    for (size_t path_idx = 0; path_idx < multi_path.paths.size(); path_idx++) {
+-                        ExtrusionPath& cur_path = multi_path.paths[path_idx];
+-                        check_and_stagger_path(cur_path);
+-                    }
+-                }
++
+ 
+                 extrusion_coll.append(ExtrusionMultiPath(std::move(multi_path)));
+             }
+@@ -1155,6 +1156,7 @@
+ 
+ void PerimeterGenerator::process_classic()
+ {
++    apply_brick_outer_width(*this);
+     group_region_by_fuzzify(*this);
+ 
+     // other perimeters
+@@ -2113,6 +2115,7 @@
+ // "A framework for adaptive width control of dense contour-parallel toolpaths in fused deposition modeling"
+ void PerimeterGenerator::process_arachne()
+ {
++    apply_brick_outer_width(*this);
+     group_region_by_fuzzify(*this);
+ 
+     // other perimeters
+@@ -2384,7 +2387,7 @@
+             }
+         }
+ 
+-        if (this->config->staggered_perimeters) { // If staggered layers are on, all odd perimeters will be staggered and should be printed after the non staggered perimeters
++        if (false) { // brick layers no longer reorder arachne extrusions
+             std::sort(ordered_extrusions.begin(), ordered_extrusions.end(), 
+                 [](PerimeterGeneratorArachneExtrusion extrusion_1, PerimeterGeneratorArachneExtrusion extrusion_2) -> bool {
+                 return extrusion_1.extrusion->inset_idx % 2 <= extrusion_2.extrusion->inset_idx % 2;
+@@ -2392,7 +2395,7 @@
+         }
+ 
+        // printf("New Layer: Layer ID %d\n",layer_id); //debug - new layer
+-        if (this->config->wall_sequence == WallSequence::InnerOuterInner && layer_id > 0 && !this->config->staggered_perimeters ) { // only enable inner outer inner algorithm after first layer
++        if (this->config->wall_sequence == WallSequence::InnerOuterInner && layer_id > 0 ) { // only enable inner outer inner algorithm after first layer
+             if (ordered_extrusions.size() > 2) { // 3 walls minimum needed to do inner outer inner ordering
+                 int position = 0; // index to run the re-ordering for multiple external perimeters in a single island.
+                 int arr_i, arr_j = 0;    // indexes to run through the walls in the for loops
+diff -ru '--exclude=build' '--exclude=deps' '--exclude=.github' a/src/libslic3r/Preset.cpp b/src/libslic3r/Preset.cpp
+--- a/src/libslic3r/Preset.cpp	2025-10-08 22:53:00.000000000 +0800
++++ b/src/libslic3r/Preset.cpp	2026-10-22 22:13:34.177652200 +0800
+@@ -792,7 +792,7 @@
+     "layer_height", "initial_layer_print_height", "wall_loops", "alternate_extra_wall", "slice_closing_radius", "spiral_mode", "spiral_mode_smooth", "spiral_mode_max_xy_smoothing", "spiral_starting_flow_ratio", "spiral_finishing_flow_ratio", "slicing_mode",
+     "top_shell_layers", "top_shell_thickness", "top_surface_density", "bottom_surface_density", "bottom_shell_layers", "bottom_shell_thickness",
+     "extra_perimeters_on_overhangs", "ensure_vertical_shell_thickness", "reduce_crossing_wall", "detect_thin_wall", "detect_overhang_wall", "overhang_reverse", "overhang_reverse_threshold","overhang_reverse_internal_only", "wall_direction",
+-    "seam_position", "staggered_inner_seams", "wall_sequence", "is_infill_first", "sparse_infill_density","fill_multiline", "sparse_infill_pattern", "lateral_lattice_angle_1", "lateral_lattice_angle_2", "infill_overhang_angle", "top_surface_pattern", "bottom_surface_pattern", "staggered_perimeters",
++    "seam_position", "staggered_inner_seams", "wall_sequence", "is_infill_first", "sparse_infill_density","fill_multiline", "sparse_infill_pattern", "lateral_lattice_angle_1", "lateral_lattice_angle_2", "infill_overhang_angle", "top_surface_pattern", "bottom_surface_pattern", "brick_wall_mode",
+ 
+     "infill_direction", "solid_infill_direction", "counterbore_hole_bridging","infill_shift_step", "sparse_infill_rotate_template", "solid_infill_rotate_template", "symmetric_infill_y_axis","skeleton_infill_density", "infill_lock_depth", "skin_infill_depth", "skin_infill_density",
+     "align_infill_direction_to_model", "extra_solid_infills",
+diff -ru '--exclude=build' '--exclude=deps' '--exclude=.github' a/src/libslic3r/PrintConfig.cpp b/src/libslic3r/PrintConfig.cpp
+--- a/src/libslic3r/PrintConfig.cpp	2025-10-08 22:53:00.000000000 +0800
++++ b/src/libslic3r/PrintConfig.cpp	2026-10-22 22:13:34.168644700 +0800
+@@ -135,6 +135,13 @@
+ };
+ CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(NoiseType)
+ 
++static t_config_enum_values s_keys_map_BrickWallMode {
++    { "none", int(BrickWallMode::bwmNone) },
++    { "half", int(BrickWallMode::bwmHalf) },
++    { "wide", int(BrickWallMode::bwmWide) }
++};
++CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(BrickWallMode)
++
+ static t_config_enum_values s_keys_map_FuzzySkinMode {
+     { "displacement",   int(FuzzySkinMode::Displacement) },
+     { "extrusion",      int(FuzzySkinMode::Extrusion) },
+@@ -5486,12 +5493,19 @@
+     def->mode = comAdvanced;
+     def->set_default_value(new ConfigOptionBool(false));
+ 
+-    def          = this->add("staggered_perimeters", coBool);
+-    def->label   = L("Stagger perimeters");
++    def          = this->add("brick_wall_mode", coEnum);
++    def->label   = L("砖砌咬合：首圈半宽交替 (Brick bite)");
+     def->category = L("Strength");
+-    def->tooltip = L("This is an experminetal feature that allows you to print staggered perimeters for better layer adhesion and strength.");
+-    def->mode    = comAdvanced;
+-    def->set_default_value(new ConfigOptionBool(false));
++    def->tooltip = L("隔层把首圈（外墙）线宽减半，外表面保持齐平，整组内墙随之外移半个线宽；下一层恢复或加宽，使上下层墙缝互相咬合。");
++    def->enum_keys_map = &ConfigOptionEnum<BrickWallMode>::get_enum_values();
++    def->enum_values.push_back("none");
++    def->enum_values.push_back("half");
++    def->enum_values.push_back("wide");
++    def->enum_labels.push_back(L("无"));
++    def->enum_labels.push_back(L("半宽交替（0.5w ↔ w）"));
++    def->enum_labels.push_back(L("宽窄交替（0.5w ↔ 1.5w）"));
++    def->mode = comSimple;
++    def->set_default_value(new ConfigOptionEnum<BrickWallMode>(BrickWallMode::bwmNone));
+ 
+     def = this->add("change_filament_gcode", coString);
+     def->label = L("Change filament G-code");
+diff -ru '--exclude=build' '--exclude=deps' '--exclude=.github' a/src/libslic3r/PrintConfig.hpp b/src/libslic3r/PrintConfig.hpp
+--- a/src/libslic3r/PrintConfig.hpp	2025-10-08 22:53:00.000000000 +0800
++++ b/src/libslic3r/PrintConfig.hpp	2026-10-22 22:13:34.149119800 +0800
+@@ -42,6 +42,12 @@
+     AllWalls,
+ };
+ 
++enum class BrickWallMode {
++    bwmNone = 0,
++    bwmHalf = 1,
++    bwmWide = 2,
++};
++
+ enum class FuzzySkinMode {
+     Displacement,
+     Extrusion,
+@@ -448,6 +454,7 @@
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(PrinterTechnology)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(GCodeFlavor)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(FuzzySkinType)
++CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(BrickWallMode)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(FuzzySkinMode)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NoiseType)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(InfillPattern)
+@@ -1034,8 +1041,8 @@
+     ((ConfigOptionFloat, internal_solid_infill_speed))
+     // Detect thin walls.
+     ((ConfigOptionBool, detect_thin_wall))
+-    //staggered layer checking
+-    ((ConfigOptionBool,               staggered_perimeters))
++    // brick-style staggered wall stacking
++    ((ConfigOptionEnum<BrickWallMode>, brick_wall_mode))
+     ((ConfigOptionFloatOrPercent, top_surface_line_width))
+     ((ConfigOptionInt, top_shell_layers))
+     ((ConfigOptionFloat, top_shell_thickness))
+diff -ru '--exclude=build' '--exclude=deps' '--exclude=.github' a/src/slic3r/GUI/ConfigManipulation.cpp b/src/slic3r/GUI/ConfigManipulation.cpp
+--- a/src/slic3r/GUI/ConfigManipulation.cpp	2025-10-08 22:53:00.000000000 +0800
++++ b/src/slic3r/GUI/ConfigManipulation.cpp	2026-10-21 18:36:52.362310200 +0800
+@@ -307,7 +307,7 @@
+            ! config->opt_bool("detect_thin_wall") &&
+            ! config->opt_bool("overhang_reverse") &&
+             config->opt_enum<WallDirection>("wall_direction") == WallDirection::Auto &&
+-            config->opt_enum<TimelapseType>("timelapse_type") == TimelapseType::tlTraditional && !config->opt_bool("staggered_perimeters") ))
++            config->opt_enum<TimelapseType>("timelapse_type") == TimelapseType::tlTraditional ))
+     {
+         DynamicPrintConfig new_conf = *config;
+         auto answer = show_spiral_mode_settings_dialog(is_object_config);
+@@ -322,7 +322,7 @@
+             new_conf.set_key_value("overhang_reverse", new ConfigOptionBool(false));
+             new_conf.set_key_value("wall_direction", new ConfigOptionEnum<WallDirection>(WallDirection::Auto));
+             new_conf.set_key_value("timelapse_type", new ConfigOptionEnum<TimelapseType>(tlTraditional));
+-            new_conf.set_key_value("staggered_perimeters", new ConfigOptionBool(false));
++            
+             sparse_infill_density = 0;
+             timelapse_type = TimelapseType::tlTraditional;
+             support = false;
+@@ -336,7 +336,7 @@
+ 
+     bool have_arachne = config->opt_enum<PerimeterGeneratorType>("wall_generator") == PerimeterGeneratorType::Arachne;
+ 	if (!is_plate_config &&
+-        config->opt_bool("staggered_perimeters") &&
++        false &&
+         (abs(config->opt_float("initial_layer_print_height") - config->opt_float("layer_height")) > EPSILON  ||
+         !(config->option<ConfigOptionFloatOrPercent>("top_surface_line_width") == config->option<ConfigOptionFloatOrPercent>("outer_wall_line_width")) || 
+             !have_arachne || 
+@@ -352,7 +352,7 @@
+             new_conf.set_key_value("spiral_mode", new ConfigOptionBool(false));
+         }
+         else {
+-            new_conf.set_key_value("staggered_perimeters", new ConfigOptionBool(false));
++            
+         }
+         apply(config, &new_conf);
+         is_msg_dlg_already_exist = false;
+@@ -512,7 +512,6 @@
+         is_msg_dlg_already_exist = false;
+     }
+     
+-    bool have_arachne = config->opt_enum<PerimeterGeneratorType>("wall_generator") == PerimeterGeneratorType::Arachne;
+     if (config->opt_enum<FuzzySkinMode>("fuzzy_skin_mode") != FuzzySkinMode::Displacement && !have_arachne) {
+         wxString msg_text = _(L("Both [Extrusion] and [Combined] modes of Fuzzy Skin require the Arachne Wall Generator to be enabled."));
+         msg_text += "\n\n" + _(L("Change these settings automatically?\n"
+diff -ru '--exclude=build' '--exclude=deps' '--exclude=.github' a/src/slic3r/GUI/Tab.cpp b/src/slic3r/GUI/Tab.cpp
+--- a/src/slic3r/GUI/Tab.cpp	2025-10-08 22:53:00.000000000 +0800
++++ b/src/slic3r/GUI/Tab.cpp	2026-10-22 22:13:34.193336200 +0800
+@@ -2222,7 +2222,7 @@
+         optgroup->append_single_option_line("wall_loops", "strength_settings_walls#wall-loops");
+         optgroup->append_single_option_line("alternate_extra_wall", "strength_settings_walls#alternate-extra-wall");
+         optgroup->append_single_option_line("detect_thin_wall", "strength_settings_walls#detect-thin-wall");
+-        optgroup->append_single_option_line("staggered_perimeters");
++        optgroup->append_single_option_line("brick_wall_mode");
+ 
+         optgroup = page->new_optgroup(L("Top/bottom shells"), L"param_shell");
+ 
