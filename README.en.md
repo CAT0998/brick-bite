@@ -6,7 +6,7 @@ A wall-interlacing algorithm for FDM slicers, shipped as a patch for OrcaSlicer.
 > **Attribution — please read first**
 >
 > **Everything in this repository (code, analysis, documentation, build scripts, this file) was produced by an AI agent** —
-> DeepSeek Harness running the `deepseek-flash` model.
+> DeepSeek Harness running the `deepseek-flash` model (DeepSeek-V4.1-Flash, build 1017).
 > The human project owner contributed **only the idea and the direction**: “shift the whole inner-wall block by
 > changing the first ring's line width instead of moving paths”.
 > The AI did the research, the math, the implementation, the compilation, the debugging and the writing.
@@ -168,8 +168,8 @@ the relation, implemented it, built a custom OrcaSlicer and verified the result.
 
 ## 9. Authors and credits
 
-- **Idea, direction, testing**: the project owner (human)
-- **Research, implementation, build, documentation, this README**: AI — DeepSeek Harness / `deepseek-flash`
+- **Idea, direction, testing**: the project owner — **@CAT0998** (https://github.com/CAT0998)
+- **Research, implementation, build, documentation, this README**: AI — DeepSeek Harness / `deepseek-flash` (DeepSeek-V4.1-Flash, build 1017)
 - Thanks to the OrcaSlicer project and the author of PR #8181 for the foundation.
 
 ---
