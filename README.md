@@ -4,7 +4,7 @@
 —— 一个用于 FDM 切片的墙体层间增强算法，以补丁形式提供给 OrcaSlicer。
 
 > **重要声明：本仓库的全部内容（代码、分析、文档、编译脚本）均由 AI Agent 生成。**
-> 具体为 **DeepSeek Harness 上的 `deepseek-flash` 模型**。
+> 具体为 **DeepSeek Harness 上的 `deepseek-flash`（DeepSeek-V4.1-Flash，build 1017）**。
 > 人类项目发起人**只负责提供想法与方向**——“不改路径，只改首圈外墙线宽来平移整组内墙”。
 > 研究、数学推导、实现、编译、排错与文档全部由 AI 完成。
 >
@@ -156,8 +156,8 @@ git apply /path/to/brick_bite.patch
 
 ## 9. 作者与致谢
 
-- **想法、方向、测试**：项目发起人（人类）
-- **分析、实现、编译、文档（含本文）**：AI —— DeepSeek Harness / `deepseek-flash`
+- **想法、方向、测试**：项目发起人 **@CAT0998**（https://github.com/CAT0998）
+- **分析、实现、编译、文档（含本文）**：AI —— DeepSeek Harness / `deepseek-flash`（DeepSeek-V4.1-Flash，build 1017）
 - 感谢 OrcaSlicer 与 PR #8181 作者提供的基础与灵感
 
 ## 10. 关于工具（私货）
