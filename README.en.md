@@ -168,6 +168,18 @@ Full text: [DISCLAIMER.md](DISCLAIMER.md).
   mode split or implementation) to charge fees, litigate or create a monopoly;
 - The public history of this repository is intended as **prior art** to prevent such patents from being granted.
 
+### Attribution requirement (important)
+
+When you use, port or reference this algorithm, keep the following credits and state the source:
+
+- Idea and direction: **@CAT0998** (https://github.com/CAT0998)
+- Implementation, analysis, build and docs: **AI — DeepSeek Harness / deepseek-flash**
+- Project: https://github.com/CAT0998/brick-bite
+
+AGPL-3.0 permits commercial use, but **notices must be kept and the corresponding source published**.
+Removing credits, claiming authorship, or repackaging and reselling this project's installers under a new name
+will be pursued to the fullest extent permitted by the license (**violators will be held accountable**).
+
 ---
 
 > Note: the detailed docs under `docs/` are currently in Chinese; this README summarizes them in English.
