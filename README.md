@@ -159,6 +159,16 @@ git apply /path/to/brick_bite.patch
 - 本仓库的公开时间戳、提交记录与文档构成**现有技术（prior art）**证据，
   用于阻止上述专利被授予。
 
+### 署名要求（重要）
+
+使用、借鉴或移植本算法时，请保留以下署名，并在文档中注明来源：
+
+- 想法与方向：**@CAT0998**（https://github.com/CAT0998）
+- 实现、分析、编译与文档：**AI — DeepSeek Harness / deepseek-flash**
+- 项目地址：https://github.com/CAT0998/brick-bite
+
+AGPL-3.0 允许商业使用，但**必须保留声明并公开对应源码**；删除署名、冒充作者、把本项目安装器原样改名转售等行为，**违者必究**。
+
 ---
 
 ## 8. 开发故事
