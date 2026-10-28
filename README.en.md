@@ -15,6 +15,16 @@ A wall-interlacing algorithm for FDM slicers, shipped as a patch for OrcaSlicer.
 
 ---
 
+## 0. Languages
+
+- **Docs**: [简体中文](README.md) · English (this file) · [繁體中文](README.zh-TW.md)
+- **Installer**: follows the system language automatically — Simplified Chinese → Chinese (Simplified),
+  Traditional Chinese (TW/HK/MO) → Chinese (Traditional), anything else → English;
+- You can also switch language in the installer window (bottom-left selector);
+- Force it with `set BRICKBITE_LANG=en` (`zh` / `tw` / `en`).
+
+---
+
 ## 1. The problem
 
 FDM parts are weakest along Z. Walls are stacked at the same XY position layer after layer, so the seams line up
