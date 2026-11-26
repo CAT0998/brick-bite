@@ -1,0 +1,150 @@
+diff -ru a/libslic3r/PerimeterGenerator.cpp src/libslic3r/PerimeterGenerator.cpp
+--- a/libslic3r/PerimeterGenerator.cpp	2026-08-21 12:29:26.000000000 +0800
++++ b/src/libslic3r/PerimeterGenerator.cpp	2026-10-25 19:36:11.801969400 +0800
+@@ -13,6 +13,7 @@
+ #include "Layer.hpp"
+ #include <cmath>
+ #include <cassert>
++#include <algorithm>
+ #include <random>
+ #include <thread>
+ #include <unordered_set>
+@@ -852,8 +853,37 @@
+ }
+ 
+ 
++// Brick bite: on alternating layers the first (outer) wall is printed half as wide.
++// Its centreline moves to keep the outer face flush, so the whole inner wall block
++// shifts sideways by half a line width - no polygon offset needed.
++static void apply_brick_outer_width(PerimeterGenerator &pg)
++{
++    if (pg.config->brick_wall_mode.value == BrickWallMode::bwmNone)
++        return;
++    // Spiral vase prints one continuous outer wall; per-layer width changes break it.
++    if (pg.config->spiral_mode.value)
++        return;
++
++    const bool  odd    = (pg.layer_id % 2) == 1;
++    const float factor = (pg.config->brick_wall_mode.value == BrickWallMode::bwmHalf)
++                             ? (odd ? 0.5f : 1.0f)
++                             : (odd ? 0.5f : 1.5f);
++
++    float       w = pg.ext_perimeter_flow.width() * factor;
++    const float h = pg.ext_perimeter_flow.height();
++    // Guard: too narrow produces a negative flow, too wide exceeds what the nozzle can push.
++    w = std::max(w, h * 1.25f);
++    float max_nozzle = 0.f;
++    for (double d : pg.print_config->nozzle_diameter.values)
++        max_nozzle = std::max(max_nozzle, float(d));
++    if (max_nozzle > 0.f)
++        w = std::min(w, max_nozzle * 2.4f);
++    pg.ext_perimeter_flow = pg.ext_perimeter_flow.with_width(w);
++}
++
+ void PerimeterGenerator::process_classic()
+ {
++    apply_brick_outer_width(*this);
+     // other perimeters
+     m_mm3_per_mm               		= this->perimeter_flow.mm3_per_mm();
+     coord_t perimeter_width         = this->perimeter_flow.scaled_width();
+@@ -1477,6 +1507,7 @@
+ // "A framework for adaptive width control of dense contour-parallel toolpaths in fused deposition modeling"
+ void PerimeterGenerator::process_arachne()
+ {
++    apply_brick_outer_width(*this);
+     // other perimeters
+     m_mm3_per_mm = this->perimeter_flow.mm3_per_mm();
+     coord_t perimeter_width = this->perimeter_flow.scaled_width();
+diff -ru a/libslic3r/Preset.cpp src/libslic3r/Preset.cpp
+--- a/libslic3r/Preset.cpp	2026-08-21 12:29:26.000000000 +0800
++++ b/src/libslic3r/Preset.cpp	2026-10-24 22:48:22.502416300 +0800
+@@ -1082,7 +1082,7 @@
+     "seam_slope_start_height", "seam_slope_entire_loop", "seam_slope_min_length",
+     "seam_slope_steps", "seam_slope_inner_walls", "role_base_wipe_speed", "seam_slope_gap", "precise_outer_wall",
+     "interlocking_beam", "interlocking_orientation", "interlocking_beam_layer_count", "interlocking_depth", "interlocking_boundary_avoidance", "interlocking_beam_width", "embedding_wall_into_infill",
+-    "alternate_extra_wall" };
++    "alternate_extra_wall", "brick_wall_mode" };
+ 
+ static std::vector<std::string> s_Preset_filament_options {/*"filament_colour", */ "default_filament_colour", "required_nozzle_HRC", "filament_diameter", "volumetric_speed_coefficients", "filament_type",
+                                                           "filament_soluble", "filament_is_support", "filament_printable", "filament_extruder_compatibility", "filament_scarf_seam_type", "filament_scarf_height",
+diff -ru a/libslic3r/PrintConfig.cpp src/libslic3r/PrintConfig.cpp
+--- a/libslic3r/PrintConfig.cpp	2026-08-21 12:29:26.000000000 +0800
++++ b/src/libslic3r/PrintConfig.cpp	2026-10-24 22:48:22.485363500 +0800
+@@ -145,6 +145,13 @@
+     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values() { return s_keys_map_##NAME; } \
+     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names() { return s_keys_names_##NAME; }
+ 
++static t_config_enum_values s_keys_map_BrickWallMode {
++    { "none", int(BrickWallMode::bwmNone) },
++    { "half", int(BrickWallMode::bwmHalf) },
++    { "wide", int(BrickWallMode::bwmWide) }
++};
++CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(BrickWallMode)
++
+ static t_config_enum_values s_keys_map_PrinterTechnology {
+     { "FFF",            ptFFF },
+     { "SLA",            ptSLA }
+@@ -4613,6 +4620,20 @@
+     def->tooltip  = L("Add an extra wall on alternating layers to improve layer bonding and part strength without the full cost of a permanent extra wall.");
+     def->set_default_value(new ConfigOptionBool(false));
+ 
++    def          = this->add("brick_wall_mode", coEnum);
++    def->label   = L("Brick bite: alternating first-ring half width");
++    def->category = L("Strength");
++    def->tooltip = L("On alternating layers the first (outer) wall is printed half as wide. Its centreline moves to keep the outer face flush, so the whole inner wall block shifts sideways by half a line width - no polygon offset needed.");
++    def->enum_keys_map = &ConfigOptionEnum<BrickWallMode>::get_enum_values();
++    def->enum_values.push_back("none");
++    def->enum_values.push_back("half");
++    def->enum_values.push_back("wide");
++    def->enum_labels.push_back(L("Off"));
++    def->enum_labels.push_back(L("Half (0.5w <-> w)"));
++    def->enum_labels.push_back(L("Wide (0.5w <-> 1.5w)"));
++    def->mode = comSimple;
++    def->set_default_value(new ConfigOptionEnum<BrickWallMode>(BrickWallMode::bwmNone));
++
+     def = this->add("post_process", coStrings);
+     def->label = L("Post-processing Scripts");
+     def->tooltip = L("If you want to process the output G-code through custom scripts, "
+diff -ru a/libslic3r/PrintConfig.hpp src/libslic3r/PrintConfig.hpp
+--- a/libslic3r/PrintConfig.hpp	2026-08-21 12:29:26.000000000 +0800
++++ b/src/libslic3r/PrintConfig.hpp	2026-10-24 22:48:22.468723200 +0800
+@@ -515,6 +515,12 @@
+ extern NozzleVolumeType legacy_fallback_nozzle_volume_type(NozzleVolumeType nozzle_volume_type);
+ extern void split_nozzle_stats_for_export(DynamicPrintConfig &config);
+ 
++enum class BrickWallMode {
++    bwmNone = 0,
++    bwmHalf = 1,
++    bwmWide = 2,
++};
++
+ #define CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NAME) \
+     template<> const t_config_enum_names& ConfigOptionEnum<NAME>::get_enum_names(); \
+     template<> const t_config_enum_values& ConfigOptionEnum<NAME>::get_enum_values();
+@@ -524,6 +530,7 @@
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(FuzzySkinType)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(NoiseType)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(FuzzySkinMode)
++CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(BrickWallMode)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(InfillPattern)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(IroningType)
+ CONFIG_OPTION_ENUM_DECLARE_STATIC_MAPS(SlicingMode)
+@@ -1179,6 +1186,7 @@
+     ((ConfigOptionBool,                 seam_slope_inner_walls))
+     ((ConfigOptionBool,                 embedding_wall_into_infill))
+     ((ConfigOptionBool,                 alternate_extra_wall))
++    ((ConfigOptionEnum<BrickWallMode>,  brick_wall_mode))
+ )
+ 
+ PRINT_CONFIG_CLASS_DEFINE(
+diff -ru a/slic3r/GUI/Tab.cpp src/slic3r/GUI/Tab.cpp
+--- a/slic3r/GUI/Tab.cpp	2026-08-21 12:29:26.000000000 +0800
++++ b/src/slic3r/GUI/Tab.cpp	2026-10-24 22:48:22.518994000 +0800
+@@ -3284,6 +3284,7 @@
+         optgroup = page->new_optgroup(L("Walls"), L"param_wall");
+         optgroup->append_single_option_line("wall_loops","wall-generator");
+         optgroup->append_single_option_line("alternate_extra_wall");
++        optgroup->append_single_option_line("brick_wall_mode");
+         optgroup->append_single_option_line("embedding_wall_into_infill");
+ 
+         optgroup->append_single_option_line("detect_thin_wall","wall-generator");

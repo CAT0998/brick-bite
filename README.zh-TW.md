@@ -61,11 +61,35 @@ FDM 列印件在 Z 方向最弱：同一位置逐層堆疊的牆，層與層之�
 
 ## 3. 安裝
 
-1. 到 [GitHub Release](https://github.com/CAT0998/brick-bite/releases) 下載安裝程式 zip；
+**目前支援版本：OrcaSlicer v2.5.2、Bambu Studio 02.09.02.62。**
+
+1. 到 [GitHub Release](https://github.com/CAT0998/brick-bite/releases) 下載安裝程式 zip：
+   - `BrickBite-Installer-2.5.2` → OrcaSlicer **v2.5.2**
+   - `BrickBite-Bambu-Installer-02.09.02.62` → Bambu Studio **2.9.2**（02.09.02.62）
+   - 舊版本（`BrickBite-Installer-2.4.2`、`BrickBite-Installer-2.3.2`）保留給對應舊版使用
 2. 解壓後雙擊安裝程式，選擇你的 OrcaSlicer / Bambu Studio 目錄；
 3. 原檔案會備份為 `*.brickbite.bak`，支援一鍵還原。
 
 安裝程式支援 **簡體中文 / 繁體中文 / English**，自動辨識系統語言，也可在介面中手動切換。
+
+### 從原始碼套用補丁
+
+補丁以官方 tag 原始碼為基準，`git apply -p1` 可直接套用：
+
+```bash
+# OrcaSlicer v2.5.2
+git clone https://github.com/OrcaSlicer/OrcaSlicer -b v2.5.2 --depth 1
+cd OrcaSlicer && git apply -p1 /path/to/brick_bite_2.5.2.patch
+
+# Bambu Studio 02.09.02.62
+git clone https://github.com/bambulab/BambuStudio -b v02.09.02.62 --depth 1
+cd BambuStudio && git apply -p1 /path/to/brick_bite_bambu_02.09.02.62.patch
+```
+
+舊補丁（`brick_bite_2.4.2.patch`、`brick_bite_bambu.patch`、`brick_bite.patch`）保留，僅供對應舊上游使用。
+編譯步驟見 [`docs/BUILD.md`](docs/BUILD.md)；Bambu Studio 的 Windows 建置入口是 `build_win.bat`。
+
+v1.3.0 起的補丁會把首圈線寬夾在 `1.25 × 層高` ~ `2.4 × 噴嘴直徑` 之間，OrcaSlicer 版另外在螺旋（花瓶）模式下自動跳過。
 
 ---
 

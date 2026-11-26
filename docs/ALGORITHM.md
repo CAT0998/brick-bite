@@ -69,7 +69,9 @@ ring3 = ring2 − s
 
 ## 3. 代码改动
 
-补丁只改 6 个文件（见 `brick_bite.patch`）：
+当前补丁（`brick_bite_2.5.2.patch` / `brick_bite_bambu_02.09.02.62.patch`）只改 5 个文件；
+更早的 `brick_bite.patch`（基于 staggered 分支）还要清理 PR 分支残留的 `staggered_perimeters`，
+所以多改一个 `ConfigManipulation.cpp`，共 6 个。
 
 | 文件 | 改动 |
 |---|---|
@@ -77,10 +79,10 @@ ring3 = ring2 − s
 | `src/libslic3r/PrintConfig.cpp` | 新增 `brick_wall_mode` 配置项（三档、中文标签、提示）与枚举映射 |
 | `src/libslic3r/Preset.cpp` | 把 `brick_wall_mode` 加入打印参数列表 |
 | `src/slic3r/GUI/Tab.cpp` | 在 强度 → 墙 分组里加入该选项 |
-| `src/slic3r/GUI/ConfigManipulation.cpp` | 清理旧（PR 分支）`staggered_perimeters` 引用 |
+| `src/slic3r/GUI/ConfigManipulation.cpp` | 清理旧（PR 分支）`staggered_perimeters` 引用（仅 `brick_bite.patch`） |
 | `src/libslic3r/PerimeterGenerator.cpp` | 核心：`apply_brick_outer_width()`，在两个 `process_*` 入口调用 |
 
-核心函数：
+核心函数（v1.3.0 起的版本，带护栏）：
 
 ```cpp
 // 隔层修改首圈（外墙）线宽；外表面保持齐平，内墙整组平移
@@ -88,14 +90,25 @@ static void apply_brick_outer_width(PerimeterGenerator &pg)
 {
     if (pg.config->brick_wall_mode.value == BrickWallMode::bwmNone)
         return;
-    const bool odd = (pg.layer_id % 2) == 1;
-    float factor;
-    if (pg.config->brick_wall_mode.value == BrickWallMode::bwmHalf)
-        factor = odd ? 0.5f : 1.0f;
-    else
-        factor = odd ? 0.5f : 1.5f;
-    pg.ext_perimeter_flow =
-        pg.ext_perimeter_flow.with_width(pg.ext_perimeter_flow.width() * factor);
+    // 螺旋花瓶是一整圈连续外墙，逐层改宽度会把它打断
+    if (pg.print_config->spiral_mode.value)      // ← 仅 OrcaSlicer 版有这一条
+        return;
+
+    const bool  odd    = (pg.layer_id % 2) == 1;
+    const float factor = (pg.config->brick_wall_mode.value == BrickWallMode::bwmHalf)
+                             ? (odd ? 0.5f : 1.0f)
+                             : (odd ? 0.5f : 1.5f);
+
+    float       w = pg.ext_perimeter_flow.width() * factor;
+    const float h = pg.ext_perimeter_flow.height();
+    // 护栏：太窄会算出负流量，太宽超过喷嘴的挤出能力
+    w = std::max(w, h * 1.25f);
+    float max_nozzle = 0.f;
+    for (double d : pg.print_config->nozzle_diameter.values)
+        max_nozzle = std::max(max_nozzle, float(d));
+    if (max_nozzle > 0.f)
+        w = std::min(w, max_nozzle * 2.4f);
+    pg.ext_perimeter_flow = pg.ext_perimeter_flow.with_width(w);
 }
 ```
 
@@ -129,6 +142,33 @@ fill_clip              = 由 ext_perimeter_spacing 推导
 
 在入口处改掉 flow，后续全部自动一致，无需改动 offset 逻辑本身。
 
+### 失败保护
+
+逐层改首圈线宽在极端参数下会把线宽推出挤出能力的边界，所以写回 flow 之前先做两道夹紧、一道跳过：
+
+| 护栏 | 条件 | 原因 |
+|---|---|---|
+| 下限夹紧 | `w₀ ≥ 1.25 × 层高` | 线宽小于层高的 1.25 倍时熔道截面比过小，`mm3_per_mm` 有算出**负流量**的风险（half 模式折半后的 `0.5w` 最容易踩到，喷嘴越细越明显） |
+| 上限夹紧 | `w₀ ≤ 2.4 × 喷嘴直径` | 线宽超过喷嘴直径的 2.4 倍后，多出来的材料只是被往两侧挤，挤出量线性上升而熔道不再变宽（wide 模式的 `1.5w` 最容易踩到） |
+| 花瓶跳过 | `spiral_mode` 为真 → 直接 return | 螺旋花瓶的外墙是一整圈连续上升的单线，逐层改宽度会在层间留下宽度跳变、把螺旋打断；此时保持原线宽，功能整体不生效 |
+
+也就是实际写进 `ext_perimeter_flow` 的线宽为：
+
+```
+w₀' = min( max( w₀ · f , 1.25 · h ) , 2.4 · d_n )
+
+f   ：该层的交替系数（0.5 / 1.0 / 1.5）
+h   ：层高（ext_perimeter_flow.height()）
+d_n ：配置里的最大喷嘴直径（nozzle_diameter 取最大值；为 0 时不做上限夹紧）
+```
+
+夹紧只改这一个值，`ring1` 及其后各圈的位置仍由 `Δw₀/2` 推出，所以**错位关系本身不会被破坏**：
+`w₀` 被拉回区间后，两层之差同样按夹紧后的实际宽度计算，只是极端参数下错位量会等比变小
+（例如 half 模式在窄喷嘴上会小于名义的 `0.5w`），不会出现错乱或重叠加料。
+
+两道夹紧在 OrcaSlicer 与 Bambu Studio 两个补丁里都有；花瓶模式判断只在 OrcaSlicer 版
+（`brick_bite_2.5.2.patch`）里。
+
 ---
 
 ## 4. 移植到其它切片器
@@ -147,5 +187,5 @@ fill_clip              = 由 ext_perimeter_spacing 推导
 
 1. 用 45° 斜面 + 圆孔模型切片；
 2. 导出 G-code，统计每层内墙的坐标（X 或 Y 的极值）；
-3. 相邻层内墙应整体相差 0.5w（half）或 1.0w（wide）；
+3. 相邻层内墙应整体相差 0.5w（half）或 1.0w（wide）（线宽被夹紧时，按夹紧后的实际线宽换算）；
 4. 外墙外表面在各层应保持同一条线（不凸出/不凹陷）。

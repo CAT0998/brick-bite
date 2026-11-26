@@ -18,11 +18,44 @@ reg add "HKLM\SYSTEM\CurrentControlSet\Control\FileSystem" /v LongPathsEnabled /
 
 ## 2. 获取源码
 
+基线是官方 tag：OrcaSlicer **v2.5.2**、Bambu Studio **v02.09.02.62**（官方名 2.9.2 Public Release）。
+
 ```bash
-git clone https://github.com/vipulrajan/OrcaSlicer -b staggered-perimeters-rebased
+# OrcaSlicer v2.5.2
+git clone https://github.com/OrcaSlicer/OrcaSlicer -b v2.5.2 --depth 1
 cd OrcaSlicer
-git apply /path/to/brick_bite.patch
+git apply -p1 /path/to/brick_bite_2.5.2.patch
 ```
+
+```bash
+# Bambu Studio v02.09.02.62
+git clone https://github.com/bambulab/BambuStudio -b v02.09.02.62 --depth 1
+cd BambuStudio
+git apply -p1 /path/to/brick_bite_bambu_02.09.02.62.patch
+```
+
+Bambu Studio 的 Windows 构建脚本是仓库根目录的 `build_win.bat`；OrcaSlicer 用第 4 节的
+`build_release_vs2022.bat`。旧补丁（`brick_bite_2.4.2.patch`、`brick_bite_bambu.patch`、
+`brick_bite.patch`）保留，仅用于对应旧上游。
+
+### 2.1 国内网络下载源码
+
+`github.com` 不可达、但 `codeload.github.com` 还能连时，不用代理，直接把归档地址换掉即可：
+
+```
+原来: https://github.com/<owner>/<repo>/archive/refs/tags/<tag>.zip
+换成: https://codeload.github.com/<owner>/<repo>/zip/refs/tags/<tag>
+```
+
+例如：
+
+```
+https://codeload.github.com/OrcaSlicer/OrcaSlicer/zip/refs/tags/v2.5.2
+https://codeload.github.com/bambulab/BambuStudio/zip/refs/tags/v02.09.02.62
+```
+
+注意这里**不需要** `.zip` 后缀，codeload 会直接返回 zip 流（`<repo>-<tag>.zip`）；
+解压后的目录名与 `git clone` 略有不同（通常是 `<repo>-<tag>`），后续脚本里的路径按实际目录名调整。
 
 ## 3. 依赖下载（网络受限时）
 
@@ -45,6 +78,9 @@ for root, _, files in os.walk("deps"):
 
 - `deps/OpenCV/OpenCV.cmake` 里的 `-DWITH_IPP=ON` 建议改为 `OFF`（IPPICV 下载易失败）；
 - `deps/wxWidgets/wxWidgets.cmake` 的 `GIT_SHALLOW ON` 后建议加 `UPDATE_DISCONNECTED 1`。
+
+> **和 2.4.2 的差别**：OrcaSlicer 2.5.2 的依赖版本有明显升级（CGAL 5.6.3 → 6.2.1、GMP 6.3.0、
+> PNG 1.6.59 等），所以**首次构建依赖的时间会比 2.4.2 长不少**，机型慢的话请预留出额外的时间与磁盘。
 
 ## 4. 编译
 

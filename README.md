@@ -1,7 +1,7 @@
 # 砖砌咬合 Brick Bite
 
 **逐层交替首圈半宽偏移 · 砖砌式 Z 轴堆叠交错咬合算法**
-—— 一个用于 FDM 切片的墙体层间增强算法，以补丁形式提供给 OrcaSlicer。
+—— 一个用于 FDM 切片的墙体层间增强算法，以补丁形式提供给 OrcaSlicer / Bambu Studio。
 
 > **重要声明：本仓库的全部内容（代码、分析、文档、编译脚本）均由 AI Agent 生成。**
 > 具体为 **DeepSeek Harness 上的 `deepseek-flash`（DeepSeek-V4.1-Flash，build 1017）**。
@@ -98,18 +98,43 @@ $$
 
 ### 4.1 应用补丁
 
-补丁基于 OrcaSlicer 的 `staggered-perimeters-rebased` 分支（PR #8181 作者分支）：
+**当前支持版本：OrcaSlicer v2.5.2、Bambu Studio 02.09.02.62。**
+
+补丁以官方 tag 的源码为基线，`git apply -p1` 可直接应用：
 
 ```bash
-git clone https://github.com/vipulrajan/OrcaSlicer -b staggered-perimeters-rebased
+# OrcaSlicer v2.5.2
+git clone https://github.com/OrcaSlicer/OrcaSlicer -b v2.5.2 --depth 1
 cd OrcaSlicer
-git apply /path/to/brick_bite.patch
+git apply -p1 /path/to/brick_bite_2.5.2.patch
 ```
+
+```bash
+# Bambu Studio 02.09.02.62（官方名 2.9.2 Public Release）
+git clone https://github.com/bambulab/BambuStudio -b v02.09.02.62 --depth 1
+cd BambuStudio
+git apply -p1 /path/to/brick_bite_bambu_02.09.02.62.patch
+```
+
+Bambu Studio 的 Windows 构建入口是仓库根目录的 `build_win.bat`（OrcaSlicer 见 [docs/BUILD.md](docs/BUILD.md)）。
+
+补丁清单（旧补丁保留，仅用于对应旧上游）：
+
+| 补丁文件 | 适用上游 |
+|---|---|
+| `brick_bite_2.5.2.patch` | OrcaSlicer **v2.5.2**（当前） |
+| `brick_bite_bambu_02.09.02.62.patch` | Bambu Studio **02.09.02.62**（当前） |
+| `brick_bite_2.4.2.patch` | OrcaSlicer v2.4.2 |
+| `brick_bite_bambu.patch` | Bambu Studio 02.08.02.61 |
+| `brick_bite.patch` | OrcaSlicer 2.3.2-dev（`staggered-perimeters-rebased` 分支，PR #8181 作者分支） |
+
+相比 2.4.2 版，v1.3.0 的补丁多了两处护栏：**线宽夹紧**（≥ 1.25 × 层高、≤ 2.4 × 喷嘴直径，两份补丁都有）与**螺旋（花瓶）模式自动跳过**（仅 OrcaSlicer 版）。详见 [docs/ALGORITHM.md](docs/ALGORITHM.md)。
 
 ### 4.2 编译（Windows）
 
 参考 `docs/BUILD.md`：VS 2022 Build Tools + CMake + Strawberry Perl，
-依赖下载若被墙可把 URL 前缀改为 `https://ghproxy.net/https://github.com/`。
+依赖下载若被墙可把 URL 前缀改为 `https://ghproxy.net/https://github.com/`
+（源码归档也可直接走 `https://codeload.github.com/<owner>/<repo>/zip/refs/tags/<tag>`）。
 
 ### 4.3 使用
 
@@ -132,6 +157,8 @@ git apply /path/to/brick_bite.patch
 
 | 安装器 | 适用版本 |
 |---|---|
+| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** 官方发布版（当前） |
+| `BrickBite-Bambu-Installer-02.09.02.62` | Bambu Studio **2.9.2**（02.09.02.62）官方发布版（当前） |
 | `BrickBite-Installer-2.4.2` | OrcaSlicer **v2.4.2** 官方发布版 |
 | `BrickBite-Installer-2.3.2` | 2.3.2-dev（staggered 分支构建） |
 
@@ -142,7 +169,8 @@ git apply /path/to/brick_bite.patch
 
 1. **表面条纹**：外墙线宽逐层变化，外表面会呈现宽窄交替的纹理，属预期现象；
 2. **外墙同时变化**：外轮廓与孔洞的外墙共用同一 flow，会同时变宽/变窄（方向一致，不会错乱）；
-3. **挤出稳定性**：0.5w（0.45 线宽时 0.225）偏窄、1.5w 偏宽，实际打印可能需要微调流量/压力提前；
+3. **挤出稳定性**：0.5w（0.45 线宽时 0.225）偏窄、1.5w 偏宽，实际打印可能需要微调流量/压力提前
+   （v1.3.0 起线宽会被夹在 1.25 × 层高 ~ 2.4 × 喷嘴直径 之间，极端参数会被拉回可打印区间，错位量也随之等比缩小）；
 4. **Arachne 变量宽度**：薄壁、悬垂场景本身线宽可变，叠加后效果需实测；
 5. 仅验证过 PLA/PETG 常规参数，其它材料请自行测试。
 

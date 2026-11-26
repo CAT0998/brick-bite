@@ -1,7 +1,7 @@
 # Brick Bite
 
 **Alternating first-ring half-width offset · brick-style Z interlacing for FDM walls**
-A wall-interlacing algorithm for FDM slicers, shipped as a patch for OrcaSlicer.
+A wall-interlacing algorithm for FDM slicers, shipped as a patch for OrcaSlicer / Bambu Studio.
 
 > **Attribution — please read first**
 >
@@ -106,19 +106,46 @@ research, so it is published here as an independent idea and as a **defensive pu
 
 ### 4.1 Apply the patch
 
-The patch is based on the `staggered-perimeters-rebased` branch of OrcaSlicer
-(the branch used by PR #8181):
+**Currently supported versions: OrcaSlicer v2.5.2 and Bambu Studio 02.09.02.62.**
+
+The patches are based on the official release tags and apply cleanly with `git apply -p1`:
 
 ```bash
-git clone https://github.com/vipulrajan/OrcaSlicer -b staggered-perimeters-rebased
+# OrcaSlicer v2.5.2
+git clone https://github.com/OrcaSlicer/OrcaSlicer -b v2.5.2 --depth 1
 cd OrcaSlicer
-git apply /path/to/brick_bite.patch
+git apply -p1 /path/to/brick_bite_2.5.2.patch
 ```
+
+```bash
+# Bambu Studio 02.09.02.62 (official name: 2.9.2 Public Release)
+git clone https://github.com/bambulab/BambuStudio -b v02.09.02.62 --depth 1
+cd BambuStudio
+git apply -p1 /path/to/brick_bite_bambu_02.09.02.62.patch
+```
+
+On Windows, Bambu Studio is built with `build_win.bat` from the repository root
+(OrcaSlicer: see [docs/BUILD.md](docs/BUILD.md)).
+
+Patches in this repository (the older ones are kept for their matching upstream):
+
+| Patch file | Upstream |
+|---|---|
+| `brick_bite_2.5.2.patch` | OrcaSlicer **v2.5.2** (current) |
+| `brick_bite_bambu_02.09.02.62.patch` | Bambu Studio **02.09.02.62** (current) |
+| `brick_bite_2.4.2.patch` | OrcaSlicer v2.4.2 |
+| `brick_bite_bambu.patch` | Bambu Studio 02.08.02.61 |
+| `brick_bite.patch` | OrcaSlicer 2.3.2-dev (`staggered-perimeters-rebased`, the PR #8181 author's branch) |
+
+Compared with the 2.4.2 patch, the v1.3.0 patches add two guards: **line-width clamping**
+(≥ 1.25 × layer height, ≤ 2.4 × nozzle diameter — in both patches) and **automatic skip in
+spiral (vase) mode** (OrcaSlicer build only). See [docs/ALGORITHM.md](docs/ALGORITHM.md).
 
 ### 4.2 Build (Windows)
 
 See `docs/BUILD.md`: VS 2022 Build Tools + CMake + Strawberry Perl.
-If GitHub is blocked, rewrite dependency URLs with `https://ghproxy.net/https://github.com/`.
+If GitHub is blocked, rewrite dependency URLs with `https://ghproxy.net/https://github.com/`
+(or fetch the source as `https://codeload.github.com/<owner>/<repo>/zip/refs/tags/<tag>`).
 
 ### 4.3 Use
 
@@ -141,6 +168,8 @@ If you do not want to compile, use the installers from the Releases page:
 
 | Installer | Target |
 |---|---|
+| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** official release (current) |
+| `BrickBite-Bambu-Installer-02.09.02.62` | Bambu Studio **2.9.2** (02.09.02.62) official release (current) |
 | `BrickBite-Installer-2.4.2` | OrcaSlicer **v2.4.2** official release |
 | `BrickBite-Installer-2.3.2` | 2.3.2-dev (staggered branch build) |
 
@@ -153,7 +182,9 @@ See [INSTALLER.md](INSTALLER.md).
    This is inherent to the method;
 2. **Both outer loops change** — outer contour and hole walls share the same flow, so both get wider/narrower at the
    same time (directions are consistent, so no distortion);
-3. **Extrusion stability** — 0.5w (0.225 mm at 0.45) is narrow and 1.5w is wide; flow / pressure advance may need tuning;
+3. **Extrusion stability** — 0.5w (0.225 mm at 0.45) is narrow and 1.5w is wide; flow / pressure advance may need tuning
+   (since v1.3.0 the width is clamped to 1.25 × layer height … 2.4 × nozzle diameter, so extreme settings are pulled
+   back into a printable range and the stagger shrinks with them);
 4. **Arachne variable width** — thin walls and overhangs already vary their width; test before relying on it;
 5. Only PLA/PETG with common settings were tested.
 
