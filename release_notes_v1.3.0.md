@@ -19,10 +19,18 @@
 2. **花瓶（螺旋）模式自动跳过**（OrcaSlicer 版）：螺旋花瓶的外墙是一整圈连续墙，
    逐层改宽度会把螺旋打断，因此该模式下直接不生效、保持原线宽。
 
-### 安装器
+### 安装器与实测状态
 
-- `BrickBite-Installer-2.5.2` → OrcaSlicer **v2.5.2**
-- `BrickBite-Bambu-Installer-02.09.02.62` → Bambu Studio **2.9.2**（02.09.02.62）
+| 安装器 | 上游 | 状态 |
+|---|---|---|
+| `BrickBite-Bambu-Installer-02.09.02.62` | Bambu Studio **2.9.2**（02.09.02.62） | ✅ 已编译并实机验证，本 Release 附件 |
+| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** | ⏳ 补丁已就绪；二进制需重建全部依赖（CGAL 6.2.1 等），编译中，完成后单独补发 |
+
+已做的实机验证（Bambu Studio 02.09.02.62）：
+- 程序可正常启动、加载 STL、切片；
+- 「工艺 → 强度 → 墙」出现 **Brick bite: alternating first-ring half width**，可选 Off / Half / Wide；
+- 同一模型分别用 `Half` 与 `Off` 切片并导出 G-code 对比：`Half` 模式下外墙 `; LINE_WIDTH:` 在 **0.25 / 0.42** 之间逐层交替，
+  `Off` 模式下 148 段外墙全部为 0.42 —— 交替错位确实生效；0.25 正是 `1.25 × 层高(0.2)`，说明线宽夹紧也在起作用。
 
 安装器按 SHA256 比对、只替换有差异的文件，替换前备份为 `*.brickbite.bak`。
 
@@ -52,10 +60,19 @@ The older patches are unchanged: `brick_bite.patch` (2.3.2-dev, `staggered-perim
 2. **Spiral (vase) mode is skipped** (OrcaSlicer build) — the vase outer wall is one continuous loop and a
    per-layer width change would break it, so the feature simply stays off in that mode.
 
-### Installers
+### Installers and verification status
 
-- `BrickBite-Installer-2.5.2` → OrcaSlicer **v2.5.2**
-- `BrickBite-Bambu-Installer-02.09.02.62` → Bambu Studio **2.9.2** (02.09.02.62)
+| Installer | Upstream | Status |
+|---|---|---|
+| `BrickBite-Bambu-Installer-02.09.02.62` | Bambu Studio **2.9.2** (02.09.02.62) | ✅ built and verified on a real machine, attached to this release |
+| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** | ⏳ patch ready; the binary needs the whole dependency set rebuilt (CGAL 6.2.1 and friends), build in progress, will ship separately |
+
+What was actually verified (Bambu Studio 02.09.02.62):
+- the application starts, imports an STL and slices;
+- **Process → Strength → Walls** shows **Brick bite: alternating first-ring half width** with Off / Half / Wide;
+- slicing the same model with `Half` and with `Off` and diffing the exported G-code: in `Half` mode the outer-wall
+  `; LINE_WIDTH:` alternates **0.25 / 0.42** layer by layer, while in `Off` mode all 148 outer-wall segments are 0.42 —
+  the interlace really happens, and 0.25 is exactly `1.25 × layer height (0.2)`, which shows the width clamp is active.
 
 The installer compares SHA256 hashes, replaces only the files that differ and backs each one up as
 `*.brickbite.bak`.
