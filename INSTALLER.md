@@ -48,6 +48,24 @@ OrcaSlicer 与 Bambu Studio 都没有插件接口，砖砌咬合是编译进程�
 如果目标目录里没有对应的可执行文件（OrcaSlicer 是 `orca-slicer.exe`，Bambu Studio 是 `bambu-studio.exe`），
 安装器会询问是否作为“全新安装目录”，此时会写入完整程序。
 
+## 网络插件（Bambu Studio 版）
+
+Bambu Studio 的 Brick Bite 构建是 internal testing 版，数据目录是
+`%APPDATA%\BambuStudioInternal`（官方版是 `%APPDATA%\BambuStudio`）。
+官方安装的网络插件在官方目录里，这个构建看不到，程序会一直提示「请在登陆前安装网络插件」，
+而应用内下载在这类构建里是坏的。
+
+所以 **v1.3.1 起的 Bambu 安装器**在复制完文件后会：
+
+1. 读取目标目录里 `bambu-studio.exe` 的版本（例如 02.09.02.62）；
+2. 向 `api.bambulab.com` 查询该版本对应的网络插件（当前是 02.09.02.50）；
+3. 下载约 47 MB 的插件包，解包到 `%APPDATA%\BambuStudioInternal\plugins`；
+4. 离线或接口不可用时，退化为把官方安装的 `%APPDATA%\BambuStudio\plugins` 复制过去。
+
+完成页会显示「网络插件已就绪」。首次启动时 Windows 防火墙会询问，选「允许访问」即可。
+
+详细成因与手动修复步骤见 [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md)。
+
 ## 恢复原版
 
 被替换的文件都有 `*.brickbite.bak` 备份。手动恢复即可：
@@ -59,7 +77,7 @@ OrcaSlicer 与 Bambu Studio 都没有插件接口，砖砌咬合是编译进程�
 
 ## 安全与许可
 
-- 安装器不联网、不收集任何数据；
+- 安装器不收集、不上传任何数据；Bambu Studio 版在安装完成后会向 Bambu 官方资源接口发起一次查询并下载网络插件（见上一节），除此之外不访问网络；
 - 许可：AGPL-3.0（与 OrcaSlicer 一致）；
 - 免责声明见 [DISCLAIMER.md](DISCLAIMER.md)；
 - 想法 / 方向 / 测试：**@CAT0998**；实现 / 分析 / 编译 / 文档：**AI — DeepSeek Harness / deepseek-flash**。
