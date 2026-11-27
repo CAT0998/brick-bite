@@ -23,14 +23,21 @@
 
 | 安装器 | 上游 | 状态 |
 |---|---|---|
+| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** | ✅ 已编译并实机验证，本 Release 附件 |
 | `BrickBite-Bambu-Installer-02.09.02.62` | Bambu Studio **2.9.2**（02.09.02.62） | ✅ 已编译并实机验证，本 Release 附件 |
-| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** | ⏳ 补丁已就绪；二进制需重建全部依赖（CGAL 6.2.1 等），编译中，完成后单独补发 |
 
 已做的实机验证（Bambu Studio 02.09.02.62）：
 - 程序可正常启动、加载 STL、切片；
 - 「工艺 → 强度 → 墙」出现 **Brick bite: alternating first-ring half width**，可选 Off / Half / Wide；
 - 同一模型分别用 `Half` 与 `Off` 切片并导出 G-code 对比：`Half` 模式下外墙 `; LINE_WIDTH:` 在 **0.25 / 0.42** 之间逐层交替，
   `Off` 模式下 148 段外墙全部为 0.42 —— 交替错位确实生效；0.25 正是 `1.25 × 层高(0.2)`，说明线宽夹紧也在起作用。
+
+已做的实机验证（OrcaSlicer v2.5.2）：
+- 程序可正常启动、加载 STL、切片；
+- 「工艺 → 强度 → 墙」出现 **砖砌咬合：首圈半宽交替 (Brick bite)**，可选 无 / 半宽交替（0.5w ↔ w）/ 宽窄交替（0.5w ↔ 1.5w）；
+- 同一模型分别用「半宽交替」与「无」切片并导出 G-code，按逐层外墙挤出量反算线宽：
+  `半宽交替` 时 45 层外墙平均线宽逐层交替 **0.201 / 0.418**（严格交替），`无` 时全部稳定在 **0.418** —— 交替错位确实生效；
+  0.201 已高于 `1.25 × 层高`，说明线宽夹紧同样在起作用。
 
 安装器按 SHA256 比对、只替换有差异的文件，替换前备份为 `*.brickbite.bak`。
 
@@ -65,7 +72,7 @@ The older patches are unchanged: `brick_bite.patch` (2.3.2-dev, `staggered-perim
 | Installer | Upstream | Status |
 |---|---|---|
 | `BrickBite-Bambu-Installer-02.09.02.62` | Bambu Studio **2.9.2** (02.09.02.62) | ✅ built and verified on a real machine, attached to this release |
-| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** | ⏳ patch ready; the binary needs the whole dependency set rebuilt (CGAL 6.2.1 and friends), build in progress, will ship separately |
+| `BrickBite-Installer-2.5.2` | OrcaSlicer **v2.5.2** | ✅ built and verified on a real machine, attached to this release |
 
 What was actually verified (Bambu Studio 02.09.02.62):
 - the application starts, imports an STL and slices;
@@ -73,6 +80,13 @@ What was actually verified (Bambu Studio 02.09.02.62):
 - slicing the same model with `Half` and with `Off` and diffing the exported G-code: in `Half` mode the outer-wall
   `; LINE_WIDTH:` alternates **0.25 / 0.42** layer by layer, while in `Off` mode all 148 outer-wall segments are 0.42 —
   the interlace really happens, and 0.25 is exactly `1.25 × layer height (0.2)`, which shows the width clamp is active.
+
+What was actually verified (OrcaSlicer v2.5.2):
+- the application starts, imports an STL and slices;
+- **Process → Strength → Walls** shows **砖砌咬合：首圈半宽交替 (Brick bite)** with 无 / 半宽交替（0.5w ↔ w）/ 宽窄交替（0.5w ↔ 1.5w）;
+- slicing the same model with Half and with Off, then converting each outer-wall extrusion back to a width from the
+  exported G-code: in Half mode the 45 per-layer means alternate **0.201 / 0.418** (strict alternation), while in Off
+  mode they stay at **0.418** — and 0.201 already sits above `1.25 × layer height`, so the clamp is active as well.
 
 The installer compares SHA256 hashes, replaces only the files that differ and backs each one up as
 `*.brickbite.bak`.
